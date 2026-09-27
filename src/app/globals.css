@@ -1,0 +1,51 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #07080a;
+  --panel: #0e1013;
+  --line: #1d2127;
+  --fg: #e8eaed;
+  --muted: #7d8590;
+  --observed: #5cc8ff;
+  --recalled: #b49cff;
+  --derived: #ffc452;
+  --proposed: #7ee2a8;
+  --danger: #ff6b6b;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-panel: var(--panel);
+  --color-line: var(--line);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-observed: var(--observed);
+  --color-recalled: var(--recalled);
+  --color-derived: var(--derived);
+  --color-proposed: var(--proposed);
+  --color-danger: var(--danger);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+.rise { animation: rise 180ms ease-out both; }
+
+@keyframes pulse-ring {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--observed) 45%, transparent); }
+  100% { box-shadow: 0 0 0 18px transparent; }
+}
+.pulse { animation: pulse-ring 1.4s ease-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .rise, .pulse { animation: none; }
+}

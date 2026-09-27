@@ -2,7 +2,9 @@
 
 **Reporting becomes a byproduct of work.**
 
-Every company gets dumber as it grows. What people learn is lost at the source: heads, Slack threads, call recordings nobody rereads. It's lost again on the way up, because every management layer re-summarizes it. So companies add more reporting, and builders spend their week explaining what they built.
+A customer says something important. It gets summarized five times before it reaches the CEO. By then, the signal is gone.
+
+**Cortex captures the original observation, connects it to everything the company already knows, and shows what actually changed.**
 
 Cortex listens where work happens: call recordings, Slack, support tickets, GitHub, email, or one sentence from a phone. It then:
 - **Understands every signal** (River).

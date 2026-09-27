@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { usePoll } from "@/components/usePoll";
+import { buildClusters, strategicProposal, type Cluster } from "@/lib/clusters";
 import type { Digest } from "@/lib/digest";
 import { teamSlug } from "@/lib/slug";
 import type { EventRecord } from "@/lib/schemas";
@@ -10,9 +11,7 @@ import type { EventRecord } from "@/lib/schemas";
 const fmtUsd = (n: number) => (n >= 1_000_000 ? `$${(n / 1_000_000).toFixed(1)}M` : `$${Math.round(n / 1000)}K`);
 const fmtTime = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
 
-const stakes = (r: EventRecord) => r.derivedTotalUsd ?? r.event?.opportunity_value_usd ?? 0;
 const relatedRows = (r: EventRecord) => r.diff.filter((d) => d.id.startsWith("recalled-"));
-const proposals = (r: EventRecord) => r.diff.filter((d) => d.kind === "proposed");
 const digesting = (r: EventRecord) => ["CAPTURED", "COMPILED", "RESOLVING_MEMORY"].includes(r.stage);
 
 /** One sentence a CEO can act on, built only from grounded fields. */
@@ -37,11 +36,11 @@ export default function BriefPage() {
   const dg = usePoll<{ digest: Digest | null; generating: boolean; error?: string }>("/api/digest", 2000);
   const events = list?.events ?? [];
   const inFlight = events.filter(digesting);
-  const needsYou = events
-    .filter((r) => r.event && r.triage?.route === "ceo" && (r.stage === "DIFF_READY" || r.stage === "ACCEPTED") && !r.decision && proposals(r).length > 0)
-    .sort((a, b) => stakes(b) - stakes(a));
+  const clusters = buildClusters(events);
+  const needsYou = clusters.filter((c) => !c.lead.decision && (c.lead.stage === "DIFF_READY" || c.lead.stage === "ACCEPTED"));
+  const clustered = new Set(clusters.flatMap((c) => c.items.map((r) => r.id)));
   const decided = events.filter((r) => r.decision);
-  const managed = events.filter((r) => r.triage?.route === "manager" && !r.decision);
+  const managed = events.filter((r) => r.triage?.route === "manager" && !r.decision && !clustered.has(r.id));
   const teams = [...new Set(managed.map((r) => r.reporter?.team).filter((t): t is string => !!t))];
   const since = events.length ? events[events.length - 1].observation.createdAt : null;
 
@@ -121,8 +120,8 @@ export default function BriefPage() {
             {needsYou.length} THING{needsYou.length > 1 ? "S" : ""} NEED{needsYou.length > 1 ? "" : "S"} YOUR DECISION
           </p>
           <div className="mt-4 space-y-5">
-            {needsYou.map((r, i) => (
-              <DecisionCard key={r.id} rec={r} hero={i === 0} />
+            {needsYou.map((c, i) => (
+              <DecisionCard key={c.key} rec={c.lead} cluster={c} hero={i === 0} />
             ))}
           </div>
         </section>
@@ -196,14 +195,21 @@ function StatusChip({ rec }: { rec: EventRecord }) {
   return <span className={`shrink-0 font-mono text-xs ${tone}`}>{label}</span>;
 }
 
-function DecisionCard({ rec, hero }: { rec: EventRecord; hero: boolean }) {
+const SOURCE: Record<string, string> = { phone: "phone", call: "call", slack: "Slack", ticket: "ticket", github: "GitHub", email: "email" };
+
+function DecisionCard({ rec, cluster, hero }: { rec: EventRecord; cluster: Cluster; hero: boolean }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
-  const { title, sub } = headline(rec);
+  const many = cluster.contributors.length > 1;
+  const { title, sub } = many
+    ? {
+        title: `${cluster.label} came up ${cluster.contributors.length} times today, from ${cluster.teams.length} teams — ${fmtUsd(cluster.totalUsd)} at stake.`,
+        sub: `${cluster.contributors.map((c) => c.name).join(", ")} each saw one piece. Nobody wrote a report, and nobody had connected them.`,
+      }
+    : headline(rec);
   const ev = rec.event!;
   // The CEO decides strategy (priority/roadmap); operational follow-ups stay with the team.
-  const decision =
-    proposals(rec).find((p) => /priorit|roadmap/i.test(p.title)) ?? proposals(rec).find((p) => p.op !== "action") ?? proposals(rec)[0];
+  const decision = strategicProposal(rec);
   const sources = [
     `${ev.owner ?? rec.observation.actor ?? "field"} · today`,
     ...relatedRows(rec).flatMap((r) => r.evidenceRefs),
@@ -219,9 +225,19 @@ function DecisionCard({ rec, hero }: { rec: EventRecord; hero: boolean }) {
 
   return (
     <article className={`rise rounded-2xl border border-line bg-panel ${hero ? "p-7" : "p-5"}`}>
-      <p className="mb-2 font-mono text-xs text-muted">
-        from {rec.reporter ? `${rec.reporter.name} · ${rec.reporter.role}, ${rec.reporter.team}` : rec.observation.actor ?? "the field"} · no report written
-      </p>
+      {many ? (
+        <div className="mb-3 flex flex-wrap gap-2">
+          {cluster.contributors.map((c) => (
+            <span key={c.eventId} title={c.summary} className="rounded-full border border-observed/40 px-2.5 py-1 text-xs">
+              {c.name} <span className="text-muted">· {c.team} · {SOURCE[c.source] ?? c.source}</span>
+            </span>
+          ))}
+        </div>
+      ) : (
+        <p className="mb-2 font-mono text-xs text-muted">
+          from {rec.reporter ? `${rec.reporter.name} · ${rec.reporter.role}, ${rec.reporter.team}` : rec.observation.actor ?? "the field"} · no report written
+        </p>
+      )}
       <h2 className={`${hero ? "text-3xl" : "text-xl"} font-semibold leading-tight tracking-tight`}>{title}</h2>
       <p className="mt-2 text-muted">{sub}</p>
       <div className="mt-4 flex flex-wrap gap-2 font-mono text-xs">

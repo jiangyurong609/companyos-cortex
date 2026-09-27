@@ -28,7 +28,7 @@ async function verifyProvenance(res: GroundedResolution) {
 export function createObservation(input: ObservationInput): EventRecord {
   const observation: RawObservation = { ...input, id: newId("obs"), createdAt: new Date().toISOString() };
   const rec: EventRecord = { id: observation.id, observation, stage: "CAPTURED", hits: [], diff: [], trace: [], updatedAt: observation.createdAt };
-  save(rec, { stage: "CAPTURED", message: `${input.modality} observation from ${input.actor ?? "unknown"}`, via: "companyos" });
+  save(rec, { stage: "CAPTURED", message: `${input.source} capture (${input.modality}) from ${input.actor ?? "unknown"}`, via: "companyos" });
   void runPipeline(rec);
   return rec;
 }
@@ -46,6 +46,12 @@ async function runPipeline(rec: EventRecord) {
   } catch (err) {
     return fail(rec, "compile", err);
   }
+  // Models sometimes emit the same signal twice; keep one per (type, org, requirement, value).
+  const seen = new Set<string>();
+  compiled = compiled.filter((e) => {
+    const k = [e.type, e.organization, e.requirement, e.opportunity_value_usd].join("|").toLowerCase();
+    return seen.has(k) ? false : (seen.add(k), true);
+  });
   // One capture can carry several signals; each becomes its own record and is grounded in parallel.
   const records = compiled.map((ev, i) => {
     const r: EventRecord = i === 0 ? rec : { ...rec, id: `${rec.id}-${i + 1}`, hits: [], diff: [], trace: [...rec.trace] };
@@ -62,7 +68,26 @@ async function runPipeline(rec: EventRecord) {
   await Promise.all(records.map(ground));
 }
 
+/** Cap concurrent QM grounding turns so a busy workday doesn't overload the agent runtime. */
+const MAX_GROUNDING = Number(process.env.CORTEX_MAX_GROUNDING ?? 5);
+let active = 0;
+const waiters: (() => void)[] = [];
+async function withSlot<T>(fn: () => Promise<T>): Promise<T> {
+  if (active >= MAX_GROUNDING) await new Promise<void>((r) => waiters.push(r));
+  active++;
+  try {
+    return await fn();
+  } finally {
+    active--;
+    waiters.shift()?.();
+  }
+}
+
 async function ground(rec: EventRecord) {
+  return withSlot(() => groundNow(rec));
+}
+
+async function groundNow(rec: EventRecord) {
   const runtime = getRuntime();
   try {
     rec.stage = "RESOLVING_MEMORY";

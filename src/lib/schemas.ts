@@ -8,6 +8,8 @@ export const ObservationInput = z.object({
   modality: z.enum(["text", "voice", "image"]).default("text"),
   text: z.string().trim().min(3).max(4000),
   actor: z.string().trim().max(80).optional(),
+  /** Where it was captured: the phone, or a connector (call recording, Slack, ticket, GitHub, email). */
+  source: z.enum(["phone", "call", "slack", "ticket", "github", "email"]).default("phone"),
 });
 export type ObservationInput = z.infer<typeof ObservationInput>;
 

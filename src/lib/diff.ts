@@ -125,7 +125,8 @@ export function buildDiff(obs: RawObservation, ev: RealityEvent, res: GroundedRe
   }
 
   const proposals = [...res.proposals];
-  if (req && related.length > 0 && !proposals.some((p) => /priorit/i.test(p))) proposals.unshift(`Review ${req} roadmap priority`);
+  // Always offer a concise strategic decision; agent phrasings can be too long to act on.
+  if (req && related.length > 0 && !proposals.some((p) => /priorit/i.test(p) && p.length <= 60)) proposals.unshift(`Review ${req} roadmap priority`);
   if (req && !proposals.some((p) => /feasib|estimate/i.test(p))) proposals.push(`Engineering feasibility check for ${req}`);
   proposals.forEach((p, i) =>
     rows.push({

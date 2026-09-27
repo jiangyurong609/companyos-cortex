@@ -12,6 +12,9 @@ export const PEOPLE = [
   { slug: "leo", name: "Leo", role: "Staff Engineer", team: "Product", reportsTo: "Dana", owns: "Authentication" },
   { slug: "maya", name: "Maya", role: "VP Revenue", team: "Sales", reportsTo: "Yurong", owns: "Sales and Customer Success" },
   { slug: "dana", name: "Dana", role: "Head of Product", team: "Product", reportsTo: "Yurong", owns: "Roadmap" },
+  { slug: "omar", name: "Omar", role: "Support Engineer", team: "Customer Success", reportsTo: "Maya", owns: "Support queue" },
+  { slug: "jordan", name: "Jordan", role: "Product Marketing Manager", team: "Marketing", reportsTo: "Yurong", owns: "Competitive intelligence" },
+  { slug: "kim", name: "Kim", role: "Finance Lead", team: "Finance", reportsTo: "Yurong", owns: "Forecast and bookings" },
 ];
 
 export const SEED_NOTES: SeedNote[] = [

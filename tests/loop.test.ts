@@ -41,7 +41,7 @@ describe("grounded diff", () => {
   it("links Ramp + Globex and derives $340K in code", async () => {
     const compiled = compileDeterministic(CANONICAL);
     const ev = { ...compiled, id: "evt_test", observationId: "obs_test", compiler: "deterministic" as const, confidence: 1 };
-    const obs = { id: "obs_test", createdAt: new Date().toISOString(), modality: "text" as const, text: CANONICAL };
+    const obs = { id: "obs_test", createdAt: new Date().toISOString(), modality: "text" as const, source: "phone" as const, text: CANONICAL };
     const { resolution } = await new DirectRuntime(new FixtureMemory()).ground(ev);
     const { rows, derivedTotalUsd, related } = buildDiff(obs, ev, resolution);
     expect(related.map((r) => r.organization).sort()).toEqual(["Globex", "Ramp"]);
@@ -76,7 +76,7 @@ describe("approval + writeback", () => {
   it("writes once, dedupes repeat accepts, and proves persistence", async () => {
     const { createObservation, acceptEvent } = await import("../src/lib/pipeline");
     const { events } = await import("../src/lib/store");
-    const rec = createObservation({ modality: "text", text: CANONICAL, actor: "Yurong" });
+    const rec = createObservation({ modality: "text", source: "phone", text: CANONICAL, actor: "Yurong" });
     for (let i = 0; i < 50 && events.get(rec.id)?.stage !== "DIFF_READY"; i++) await new Promise((r) => setTimeout(r, 10));
     expect(events.get(rec.id)?.stage).toBe("DIFF_READY");
     const first = await acceptEvent(rec.id);

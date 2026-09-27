@@ -53,3 +53,15 @@ Net-new repo created during hackathon hours. No prior CompanyOS source reused.
   - Pending diffs are ranked by grounded dollars, each with a one-line headline and source chips.
   - **Approve decision** merges the facts (proof ✓), then a QM turn writes a `decisions/<event>` page to GBrain, linked to the fact page.
   - Live: digest 58s, decide 39s, $340K, decision via QM.
+- **17:20** — **Distributed workday.**
+  - The GBrain org chart now covers 8 people on 5 teams (Sales, Customer Success, Product, Marketing, Finance).
+  - Observations carry a `source`: phone, call recording, Slack, support ticket, GitHub, email.
+  - `POST /api/scenario` replays six captures from connectors. The "▶ Start the workday" button is on `/exec`.
+  - Signals are deduped within a capture.
+  - **Cross-team clustering:** people who independently report the same capability, plus escalated risks and competitor signals naming its customers, become one CEO item ("4 people on 4 teams flagged SAML today").
+  - QM grounding is capped at 5 concurrent turns.
+- **17:25** — **Full live E2E:**
+  - The workday was digested and clustered.
+  - The CEO approved "Review SAML roadmap priority": fact saved with proof ✓, decision written via QM.
+  - A QM turn assigned Dana (Head of Product) from the GBrain org chart and wrote `plans/<event>`, a 4-step plan citing the $340K.
+  - `/exec` executive dashboard: KPI count-ups, $ at stake by capability, people→team→CEO/manager flow, timeline, a knowledge-kind breakdown, and a live stream with motion.

@@ -146,7 +146,7 @@ export class QmRuntime implements TurnRuntime {
   }
 
   async write(input: MemoryWrite) {
-    const slug = eventSlug(input.key);
+    const slug = input.slug ?? eventSlug(input.key);
     const text = `The user has approved this CompanyOS state transition. Persist it to GBrain memory in exactly two tool calls:
 1. put_page with slug "${slug}" and content set to EXACTLY the page between the markers (it is idempotent — re-running replaces the same page).
 2. remember with entity "${input.title.split(" — ")[0]}", kind "event", provenance "CompanyOS Cortex Reality Event ${input.key} (page ${slug})", and fact set to the first sentence of the note body.
@@ -154,7 +154,7 @@ Do not add roadmap recommendations or any other content. Do not write anything e
 Reply with ONLY a JSON object in a \`\`\`json fence: {"ref": "${slug}", "written": true}
 
 --- PAGE ---
-${pageContent(input.title, input.body, ["companyos-cortex", "reality-event"])}--- END PAGE ---`;
+${pageContent(input.title, input.body, ["companyos-cortex", input.slug ? "decision" : "reality-event"])}--- END PAGE ---`;
     const { value, log } = await this.structuredTurn(`cortex:${input.key}:write`, text, WriteReply, `cortex-write-${input.key}`);
     return { ref: value.ref, raw: value, log: ["QM → GBrain put_page + remember", ...log] };
   }

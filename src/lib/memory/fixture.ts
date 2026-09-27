@@ -40,7 +40,7 @@ export class FixtureMemory implements CompanyMemory {
   }
 
   async remember(input: MemoryWrite): Promise<{ ref: string }> {
-    const path = `events/${input.key}.md`;
+    const path = input.slug ?? `events/${input.key}.md`;
     notes.set(path, { title: input.title, body: input.body });
     return { ref: path };
   }

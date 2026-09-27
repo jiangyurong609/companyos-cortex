@@ -144,6 +144,8 @@ export interface EventRecord {
   derivedTotalUsd?: number;
   memoryNote?: string;
   write?: WriteResult;
+  /** A CEO decision merged from a proposal — written to memory as a decision, never as a fact. */
+  decision?: { text: string; ref: string; via: "qm" | "direct"; at: string };
   proof?: { query: string; hits: MemoryHit[]; found: boolean; via: "qm" | "direct" };
   trace: TraceStep[];
   error?: { stage: string; message: string; retryable: boolean };

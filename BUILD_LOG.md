@@ -49,3 +49,7 @@ Net-new repo created during hackathon hours. No prior CompanyOS source reused.
   - The persistence proof is now an independent direct GBrain `recall(entity)`. Write+proof dropped from ~55s to ~15s.
   - `pnpm gbrain:reset` clears rehearsal pages.
 - **16:12** — Live runs: canonical sentence (River → QM → GBrain → $340K → write → proof ✓) and a judge-style Initech sentence end to end ✓.
+- **16:30** — **CEO briefing (`/brief`, now the home page).**
+  - Pending diffs are ranked by grounded dollars, each with a one-line headline and source chips.
+  - **Approve decision** merges the facts (proof ✓), then a QM turn writes a `decisions/<event>` page to GBrain, linked to the fact page.
+  - Live: digest 58s, decide 39s, $340K, decision via QM.

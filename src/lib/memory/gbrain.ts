@@ -133,8 +133,8 @@ export class GBrainMemory implements CompanyMemory {
 
   /** Canonical note as a page (slug = provenance, idempotent) + one attributed fact for recall. */
   async remember(input: MemoryWrite): Promise<{ ref: string; raw?: unknown }> {
-    const slug = eventSlug(input.key);
-    await putPage(slug, input.title, input.body, ["companyos-cortex", "reality-event"]);
+    const slug = input.slug ?? eventSlug(input.key);
+    await putPage(slug, input.title, input.body, ["companyos-cortex", input.slug ? "decision" : "reality-event"]);
     const entity = input.title.split(" — ")[0];
     const fact = input.body.split("\n").find((l) => l.trim() && !l.startsWith("#")) ?? input.title;
     await call("remember", { fact, entity, provenance: `CompanyOS Cortex Reality Event ${input.key} (page ${slug})`, kind: "event" });

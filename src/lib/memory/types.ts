@@ -3,6 +3,8 @@ import type { MemoryHit } from "../schemas";
 export interface MemoryWrite {
   /** Stable key derived from the event id — makes writes idempotent. */
   key: string;
+  /** Page slug to write; defaults to cortex/events/<key>. */
+  slug?: string;
   title: string;
   body: string;
 }

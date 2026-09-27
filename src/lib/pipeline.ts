@@ -124,3 +124,33 @@ export function rejectEvent(id: string): EventRecord {
   rec.stage = "REJECTED";
   return save(rec, { stage: "REJECTED", message: "human rejected — nothing written", via: "companyos" });
 }
+
+/** CEO merges a proposal as a decision. Facts are merged first; the decision is its own page. */
+export async function decideEvent(id: string, proposal: string): Promise<EventRecord> {
+  let rec: EventRecord | undefined = events.get(id);
+  if (!rec?.event) throw new Error("event not found or not compiled");
+  if (rec.decision) return rec; // idempotent
+  if (!rec.diff.some((r) => r.kind === "proposed" && r.title === proposal)) throw new Error("unknown proposal");
+  if (rec.stage === "DIFF_READY") rec = await acceptEvent(id);
+  const runtime = getRuntime();
+  const ev = rec.event!;
+  const key = `decision-${ev.id}`;
+  const slug = `decisions/${ev.id.toLowerCase().replace(/[^a-z0-9-]+/g, "-")}`;
+  const related = rec.diff.filter((r) => r.kind === "recalled" || r.kind === "derived").map((r) => `- ${r.title} (${r.evidenceRefs.join(", ")})`);
+  const body = [
+    `# Decision — ${proposal}`,
+    "",
+    `Decided by the CEO on ${new Date().toISOString().slice(0, 10)} after reviewing CompanyOS Cortex Reality Event ${ev.id}.`,
+    "",
+    "Why:",
+    `- ${ev.summary}`,
+    ...related,
+    "",
+    `Source: CompanyOS Cortex Reality Event ${ev.id} (page ${rec.write?.ref ?? "pending"})`,
+  ].join("\n");
+  save(rec, { stage: rec.stage, message: `CEO approved decision: ${proposal}`, via: "companyos" });
+  const w = await runtime.write({ key, slug, title: `Decision — ${proposal}`, body });
+  rec.decision = { text: proposal, ref: w.ref, via: runtime.via, at: new Date().toISOString() };
+  for (const l of w.log) rec.trace.push({ at: new Date().toISOString(), stage: "DECIDED", message: l, via: "gbrain" });
+  return save(rec, { stage: rec.stage, message: `decision written → ${w.ref}`, via: runtime.via === "qm" ? "qm" : "companyos" });
+}

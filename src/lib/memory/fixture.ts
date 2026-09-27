@@ -30,6 +30,10 @@ export class FixtureMemory implements CompanyMemory {
     return scored.filter((h) => h.score > 0).sort((a, b) => b.score - a.score).slice(0, 5);
   }
 
+  async recall(query: string, entity?: string): Promise<MemoryHit[]> {
+    return this.search(`${entity ?? ""} ${query}`);
+  }
+
   async remember(input: MemoryWrite): Promise<{ ref: string }> {
     const path = `events/${input.key}.md`;
     notes.set(path, { title: input.title, body: input.body });

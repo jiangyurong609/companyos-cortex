@@ -29,3 +29,16 @@ Net-new repo created during hackathon hours. No prior CompanyOS source reused.
   - The signed core API works.
   - The `cortex-demo` project was created (`POST /v1/projects`, scope `group:web-project-24f04858…`).
   - A first real QM turn in that project scope returned `status: ok`.
+- **15:25** — **GBrain connected.** Sign-in and an "Access token" client (Read and write) were set up in the gbrain.io workspace.
+  - The token went clipboard → `.env.local` via `scripts/set-gbrain-token.sh` and was never displayed.
+  - `tools/list` exposes around 100 tools. The adapter now uses the real ones:
+    - `search` for hybrid search, keyed by page slug;
+    - `put_page` for slug-addressed notes, which is idempotent;
+    - `remember` for facts, with required provenance.
+  - Seeded the 6 Northstar API pages (`sales/acme`, `sales/ramp`, `sales/globex`, `product/auth`, `decisions/enterprise`, `company/overview`). All 3 demo queries return them.
+- **15:35** — **QM → GBrain connected.** `PUT /v1/admin/mcp-servers/gbrain` (bearer auth, shared). A QM turn in `cortex-demo` searched GBrain and returned the seeded pages with their slugs.
+- **15:40** — **First full live loop through QM + GBrain:**
+  - Acme/SAML/$120K/Friday → Ramp + Globex linked from GBrain pages → $340K.
+  - The accept went through QM, and a repeat accept was deduplicated.
+  - Proof failed: the agent saved a bare fact instead of the page. Fixed by giving the write turn the exact `put_page` slug and content and requiring the slug back.
+  - QM turns now run at `thinkingLevel: low`.

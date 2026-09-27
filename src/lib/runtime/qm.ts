@@ -1,5 +1,6 @@
 import { createHmac } from "node:crypto";
 import { z } from "zod";
+import { eventSlug, pageContent } from "../memory/gbrain";
 import type { MemoryWrite } from "../memory/types";
 import { GroundedResolution, type MemoryHit, type RealityEvent } from "../schemas";
 import type { TurnRuntime } from "./types";
@@ -77,7 +78,7 @@ Put recommendations only in "proposals" — never in "recalled". Do not compute 
 Reply with ONLY a JSON object in a \`\`\`json fence, matching:
 {"recalled":[{"statement":string,"organization":string|null,"requirement":string|null,"value_usd":number|null,"source_ref":string,"quote":string}],"contradictions":[string],"missing":[string],"proposals":[string],"source_refs":[string]}`;
 
-const HitsReply = z.object({ hits: z.array(z.object({ id: z.string(), title: z.string(), snippet: z.string() })) });
+const HitsReply = z.object({ hits: z.array(z.object({ id: z.string(), title: z.string(), snippet: z.string(), source: z.string().optional() })) });
 const WriteReply = z.object({ ref: z.string(), written: z.boolean().optional() });
 
 export class QmRuntime implements TurnRuntime {
@@ -93,6 +94,8 @@ export class QmRuntime implements TurnRuntime {
       actor: { externalId: this.cfg.actorId, displayName: "CompanyOS Cortex" },
       conversation: { kind: "group", channelRef: `web-project-${this.cfg.projectId}`, threadRef },
       text,
+      // Bounded extraction turns: low reasoning effort keeps the demo loop fast.
+      thinkingLevel: process.env.QM_THINKING_LEVEL ?? "low",
       ...(idempotencyKey ? { idempotencyKey } : {}),
     });
     const r = json as TurnResult;
@@ -143,23 +146,25 @@ export class QmRuntime implements TurnRuntime {
   }
 
   async write(input: MemoryWrite) {
-    const text = `The user has approved this CompanyOS state transition.
-Write exactly the approved factual note below to GBrain memory using the remember tool, titled "${input.title}".
-Preserve the source event id and timestamp. Do not add roadmap recommendations or any other content.
-If a note for event ${input.key} already exists, do not write a duplicate — return its reference.
-Reply with ONLY a JSON object in a \`\`\`json fence: {"ref": "<GBrain note path/id>", "written": true|false}
+    const slug = eventSlug(input.key);
+    const text = `The user has approved this CompanyOS state transition. Persist it to GBrain memory in exactly two tool calls:
+1. put_page with slug "${slug}" and content set to EXACTLY the page between the markers (it is idempotent — re-running replaces the same page).
+2. remember with entity "${input.title.split(" — ")[0]}", kind "event", provenance "CompanyOS Cortex Reality Event ${input.key} (page ${slug})", and fact set to the first sentence of the note body.
+Do not add roadmap recommendations or any other content. Do not write anything else.
+Reply with ONLY a JSON object in a \`\`\`json fence: {"ref": "${slug}", "written": true}
 
---- APPROVED NOTE ---
-${input.body}
---- END NOTE ---`;
+--- PAGE ---
+${pageContent(input.title, input.body, ["companyos-cortex", "reality-event"])}--- END PAGE ---`;
     const { value, log } = await this.structuredTurn(`cortex:${input.key}:write`, text, WriteReply, `cortex-write-${input.key}`);
-    return { ref: value.ref, raw: value, log: ["QM → GBrain remember", ...log] };
+    return { ref: value.ref, raw: value, log: ["QM → GBrain put_page + remember", ...log] };
   }
 
-  async recall(query: string) {
-    const text = `Search GBrain memory for: "${query}". Do not write anything.
-Reply with ONLY a JSON object in a \`\`\`json fence: {"hits":[{"id":"<note path/id>","title":string,"snippet":"<verbatim excerpt>"}]} (max 5).`;
+  async recall(query: string, entity?: string) {
+    const text = `Fresh recall from GBrain memory. Do not write anything.
+Call the GBrain recall tool with ${entity ? `entity "${entity}" and ` : ""}query "${query}".
+Return every fact and page result. For a fact use id "fact:<fact_id>", title = its entity, snippet = the fact text, source = its provenance, verbatim. For a page use its slug verbatim as id and source "gbrain:<slug>".
+Reply with ONLY a JSON object in a \`\`\`json fence: {"hits":[{"id":string,"title":string,"snippet":string,"source":string}]} (max 8).`;
     const { value, log } = await this.structuredTurn(`cortex:recall:${Date.now()}`, text, HitsReply);
-    return { hits: value.hits.map((h) => ({ ...h, source: `gbrain:${h.id}` })), log: [`QM → GBrain recall: "${query}"`, ...log] };
+    return { hits: value.hits, log: [`QM → GBrain recall${entity ? ` entity=${entity}` : ""}: "${query}"`, ...log] };
   }
 }

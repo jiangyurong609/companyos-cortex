@@ -76,10 +76,12 @@ export async function acceptEvent(id: string, editedNote?: string): Promise<Even
   }
 
   // Fresh recall proves persistence.
-  const query = `${rec.event.organization ?? ""} ${rec.event.requirement ?? ""} blocker`.trim();
+  const entity = rec.event.organization ?? undefined;
+  const query = `What do we know about ${[rec.event.organization, rec.event.requirement].filter(Boolean).join(" and ")}?`;
   try {
-    const { hits, log } = await runtime.recall(query);
-    const found = hits.some((h) => h.snippet.includes(rec.event!.id) || h.id === rec.write!.ref || h.title === note.title);
+    const { hits, log } = await runtime.recall(query, entity);
+    const evId = rec.event.id;
+    const found = hits.some((h) => h.id === rec.write!.ref || h.snippet.includes(evId) || (h.source ?? "").includes(evId) || h.title === note.title);
     rec.proof = { query, hits, found, via: runtime.via };
     rec.stage = "ACCEPTED";
     for (const l of log) rec.trace.push({ at: new Date().toISOString(), stage: "ACCEPTED", message: l, via: "gbrain" });

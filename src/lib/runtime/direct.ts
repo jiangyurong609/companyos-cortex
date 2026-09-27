@@ -7,7 +7,7 @@ const REQ = /\b(SAML|SSO|SCIM|SOC ?2|HIPAA|OAuth)\b/i;
 
 /** Deterministic hit -> fact extraction, so the direct path never needs an LLM to ground. */
 export function hitToFact(h: MemoryHit): RecalledFact {
-  const fromPath = h.id.match(/^sales\/([^/.]+)\.md$/)?.[1];
+  const fromPath = h.id.match(/^sales\/([^/.]+)(?:\.md)?$/)?.[1];
   const organization = fromPath ? fromPath[0].toUpperCase() + fromPath.slice(1) : null;
   const req = h.snippet.match(REQ)?.[1] ?? null;
   // Prefer SAML when a note names both "SSO" and "SAML".
@@ -25,7 +25,7 @@ export function hitToFact(h: MemoryHit): RecalledFact {
 export async function searchAll(memory: CompanyMemory, queries: string[]): Promise<MemoryHit[]> {
   const results = await Promise.all(queries.map((q) => memory.search(q)));
   const byId = new Map<string, MemoryHit>();
-  for (const h of results.flat()) if (!byId.has(h.id) && !h.id.startsWith("events/")) byId.set(h.id, h);
+  for (const h of results.flat()) if (!byId.has(h.id) && !/(^|\/)events\//.test(h.id)) byId.set(h.id, h);
   return [...byId.values()];
 }
 
@@ -55,8 +55,8 @@ export class DirectRuntime implements TurnRuntime {
     return { ...r, log: [`${this.memory.mode === "live" ? "gbrain" : "fixture"} remember → ${r.ref}`] };
   }
 
-  async recall(query: string) {
-    const hits = await this.memory.search(query);
-    return { hits, log: [`search: "${query}"`] };
+  async recall(query: string, entity?: string) {
+    const hits = await this.memory.recall(query, entity);
+    return { hits, log: [`recall${entity ? ` entity=${entity}` : ""}: "${query}"`] };
   }
 }

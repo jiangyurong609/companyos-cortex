@@ -11,5 +11,6 @@ export interface CompanyMemory {
   readonly mode: "live" | "fixture";
   readonly label: string;
   search(query: string): Promise<MemoryHit[]>;
+  recall(query: string, entity?: string): Promise<MemoryHit[]>;
   remember(input: MemoryWrite): Promise<{ ref: string; raw?: unknown }>;
 }

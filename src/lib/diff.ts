@@ -58,7 +58,15 @@ export function buildDiff(obs: RawObservation, ev: RealityEvent, res: GroundedRe
       f.organization.toLowerCase() !== org.toLowerCase() &&
       sameCapability(req, `${f.requirement ?? ""} ${f.statement}`),
   );
-  const context = res.recalled.filter((f) => !related.includes(f));
+  // Context rows must touch this event: same org, same capability, or auth/roadmap decisions.
+  const context = res.recalled.filter(
+    (f) =>
+      !related.includes(f) &&
+      ((f.organization ?? "").toLowerCase() === org.toLowerCase() ||
+        sameCapability(req, `${f.requirement ?? ""} ${f.statement}`) ||
+        /\b(auth|authentication|roadmap|priority|decision|enterprise)\b/i.test(f.statement) ||
+        f.quote.toLowerCase().includes(org.toLowerCase())),
+  );
 
   related.forEach((f, i) =>
     rows.push({

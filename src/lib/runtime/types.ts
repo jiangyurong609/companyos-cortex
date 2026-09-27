@@ -11,5 +11,6 @@ export interface TurnRuntime {
   readonly label: string;
   ground(event: RealityEvent): Promise<{ hits: MemoryHit[]; resolution: GroundedResolution; log: string[] }>;
   write(input: MemoryWrite): Promise<{ ref: string; raw?: unknown; log: string[] }>;
-  recall(query: string): Promise<{ hits: MemoryHit[]; log: string[] }>;
+  /** Fresh recall used as persistence proof: entity-scoped facts + page search. */
+  recall(query: string, entity?: string): Promise<{ hits: MemoryHit[]; log: string[] }>;
 }

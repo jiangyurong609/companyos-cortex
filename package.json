@@ -11,7 +11,8 @@
     "test": "vitest run",
     "gbrain:probe": "tsx --env-file-if-exists=.env.local scripts/gbrain-probe.mts",
     "gbrain:seed": "tsx --env-file-if-exists=.env.local scripts/gbrain-seed.mts",
-    "qm:setup": "tsx --env-file-if-exists=.env.local scripts/qm-setup.mts"
+    "qm:setup": "tsx --env-file-if-exists=.env.local scripts/qm-setup.mts",
+    "gbrain:reset": "tsx --env-file-if-exists=.env.local scripts/gbrain-reset-events.mts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.128.0",

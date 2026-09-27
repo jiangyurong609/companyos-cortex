@@ -34,6 +34,11 @@ export class FixtureMemory implements CompanyMemory {
     return this.search(`${entity ?? ""} ${query}`);
   }
 
+  async getPage(ref: string): Promise<string | null> {
+    const n = notes.get(ref);
+    return n ? `${n.title}\n${n.body}` : null;
+  }
+
   async remember(input: MemoryWrite): Promise<{ ref: string }> {
     const path = `events/${input.key}.md`;
     notes.set(path, { title: input.title, body: input.body });

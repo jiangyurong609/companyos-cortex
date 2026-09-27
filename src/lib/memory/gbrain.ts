@@ -121,6 +121,16 @@ export class GBrainMemory implements CompanyMemory {
     return toHits(await call("recall", { query, ...(entity ? { entity } : {}), limit: 8 }));
   }
 
+  async getPage(ref: string): Promise<string | null> {
+    try {
+      const text = textOf(await call("get_page", { slug: ref }));
+      const page = JSON.parse(text) as { title?: string; compiled_truth?: string };
+      return `${page.title ?? ""}\n${page.compiled_truth ?? ""}`;
+    } catch {
+      return null;
+    }
+  }
+
   /** Canonical note as a page (slug = provenance, idempotent) + one attributed fact for recall. */
   async remember(input: MemoryWrite): Promise<{ ref: string; raw?: unknown }> {
     const slug = eventSlug(input.key);

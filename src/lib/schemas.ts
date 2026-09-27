@@ -52,7 +52,7 @@ export type CompiledEvent = z.infer<typeof CompiledEvent>;
 export interface RealityEvent extends CompiledEvent {
   id: string;
   observationId: string;
-  compiler: "llm" | "deterministic";
+  compiler: "llm" | "river" | "deterministic";
   confidence: number;
 }
 
@@ -103,7 +103,7 @@ export type IntegrationMode = "live" | "fixture" | "unavailable";
 export interface IntegrationStatus {
   gbrain: { mode: IntegrationMode; detail: string };
   qm: { mode: IntegrationMode; detail: string };
-  compiler: { mode: "llm" | "deterministic"; detail: string };
+  compiler: { mode: "llm" | "river" | "deterministic"; detail: string };
 }
 
 export type EventStage =
@@ -139,6 +139,8 @@ export interface EventRecord {
   resolution?: GroundedResolution;
   resolvedVia?: "qm" | "direct";
   diff: DiffRow[];
+  /** Recalled facts dropped because their cited page or quote could not be verified in GBrain. */
+  rejected?: { ref: string; statement: string; reason: string }[];
   derivedTotalUsd?: number;
   memoryNote?: string;
   write?: WriteResult;

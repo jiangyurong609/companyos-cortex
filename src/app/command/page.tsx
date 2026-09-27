@@ -15,7 +15,7 @@ const SYMBOL: Record<DiffRow["op"], string> = { add: "+", update: "~", conflict:
 const fmtTime = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
 
 function Badge({ name, mode, detail }: { name: string; mode: string; detail: string }) {
-  const tone = mode === "live" || mode === "llm" ? "bg-proposed" : mode === "unavailable" ? "bg-danger" : "bg-derived";
+  const tone = mode === "live" || mode === "llm" || mode === "river" ? "bg-proposed" : mode === "unavailable" ? "bg-danger" : "bg-derived";
   return (
     <span title={detail} className="flex items-center gap-2">
       <span className={`h-1.5 w-1.5 rounded-full ${tone}`} />
@@ -142,6 +142,21 @@ function EventView({ rec }: { rec: EventRecord }) {
                   ),
               )}
             </div>
+            {rec.rejected && rec.rejected.length > 0 && (
+              <div className="mt-6 rounded-lg border border-danger/40 px-4 py-3 font-mono text-xs">
+                <p className="text-danger">! PROVENANCE CHECK REJECTED {rec.rejected.length} — not shown above</p>
+                {rec.rejected.map((r, i) => (
+                  <p key={i} className="mt-1 text-muted">
+                    {r.ref}: “{r.statement}” — {r.reason}
+                  </p>
+                ))}
+              </div>
+            )}
+            {rec.stage === "DIFF_READY" && (
+              <p className="mt-4 font-mono text-[11px] text-muted">
+                ✓ provenance: every recalled fact above was re-fetched from its GBrain page and its quote verified{rec.rejected?.length ? "" : " · 0 rejected"}
+              </p>
+            )}
             <Approval rec={rec} />
           </section>
         )}
@@ -273,7 +288,7 @@ function Persisted({ rec }: { rec: EventRecord }) {
       {rec.proof && (
         <div className="mt-5 border-t border-line pt-4">
           <p className="font-mono text-xs text-muted">
-            fresh recall{rec.proof.via === "qm" ? " via QM" : ""}: “{rec.proof.query}” →{" "}
+            independent GBrain recall (not via the writing agent): “{rec.proof.query}” →{" "}
             <span className={rec.proof.found ? "text-proposed" : "text-derived"}>{rec.proof.found ? "new note returned" : "not returned yet"}</span>
           </p>
           <ul className="mt-2 space-y-1 text-sm">

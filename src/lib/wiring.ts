@@ -34,7 +34,9 @@ export function integrationStatus(): IntegrationStatus {
           ? { mode: "unavailable", detail: "QM ready — waiting for GBRAIN_TOKEN (then run pnpm qm:setup)" }
           : { mode: "unavailable", detail: "Set QM_CORE_URL, QM_SIGNING_SECRET, QM_PROJECT_ID, QM_ACTOR_ID" },
     compiler:
-      llmCompilerAvailable() && process.env.CORTEX_COMPILER !== "deterministic"
+      process.env.RIVER_API_KEY && !llmCompilerAvailable() && process.env.CORTEX_COMPILER !== "deterministic"
+        ? { mode: "river", detail: "River-hosted model via river/sidecar.py (falls back to deterministic)" }
+        : llmCompilerAvailable() && process.env.CORTEX_COMPILER !== "deterministic"
         ? { mode: "llm", detail: process.env.CORTEX_COMPILER_MODEL ?? "claude-opus-5" }
         : { mode: "deterministic", detail: "Deterministic parser (no ANTHROPIC_API_KEY)" },
   };

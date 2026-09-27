@@ -18,7 +18,42 @@ export function llmCompilerAvailable(): boolean {
   return Boolean(process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN);
 }
 
+export const RIVER_SIDECAR_URL = process.env.RIVER_SIDECAR_URL ?? "http://127.0.0.1:8765";
+
+/** River-hosted model via the Python sidecar (river/sidecar.py). Validated + invention-guarded. */
+async function compileWithRiver(obs: RawObservation): Promise<CompiledEvent> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const res = await fetch(`${RIVER_SIDECAR_URL}/compile`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ text: obs.text }),
+        signal: AbortSignal.timeout(30_000),
+      });
+      const j = (await res.json()) as { event?: unknown; error?: string };
+      if (!res.ok || !j.event) throw new Error(j.error ?? `sidecar ${res.status}`);
+      const parsed = guardAgainstInvention(obs.text, CompiledEvent.parse(j.event));
+      // A requirement must be a capability, not a clause; prefer the deterministic match if River rambles.
+      if (parsed.requirement && parsed.requirement.split(/\s+/).length > 4)
+        parsed.requirement = compileDeterministic(obs.text).requirement ?? null;
+      return parsed;
+    } catch (err) {
+      lastError = err;
+    }
+  }
+  throw lastError;
+}
+
 export async function compileObservation(obs: RawObservation): Promise<RealityEvent> {
+  if (process.env.CORTEX_COMPILER === "river" || (!llmCompilerAvailable() && process.env.RIVER_API_KEY)) {
+    try {
+      return finalize(obs, await compileWithRiver(obs), "river");
+    } catch {
+      // River unavailable or output failed validation: fall back, and the event says so.
+      return finalize(obs, compileDeterministic(obs.text), "deterministic");
+    }
+  }
   if (!llmCompilerAvailable() || process.env.CORTEX_COMPILER === "deterministic") {
     return finalize(obs, compileDeterministic(obs.text), "deterministic");
   }

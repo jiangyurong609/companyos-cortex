@@ -42,3 +42,10 @@ Net-new repo created during hackathon hours. No prior CompanyOS source reused.
   - The accept went through QM, and a repeat accept was deduplicated.
   - Proof failed: the agent saved a bare fact instead of the page. Fixed by giving the write turn the exact `put_page` slug and content and requiring the slug back.
   - QM turns now run at `thinkingLevel: low`.
+- **16:05** — **River is on the live path.** The Reality Event compiler is River-hosted Qwen (`Qwen3.6-35B-A3B`) behind `river/sidecar.py`.
+  - Its output is Zod-validated and invention-guarded, with an honest fallback to the deterministic parser.
+  - It handles arbitrary sentences, e.g. Initech / audit logs / $60K / end of month.
+- **16:10** — **Provenance filter.** Every recalled fact is re-fetched from its cited GBrain page (`get_page`), and its quote is verified. Failures are rejected before the diff and shown with a count.
+  - The persistence proof is now an independent direct GBrain `recall(entity)`. Write+proof dropped from ~55s to ~15s.
+  - `pnpm gbrain:reset` clears rehearsal pages.
+- **16:12** — Live runs: canonical sentence (River → QM → GBrain → $340K → write → proof ✓) and a judge-style Initech sentence end to end ✓.

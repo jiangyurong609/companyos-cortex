@@ -3,7 +3,25 @@ import { buildDiff, buildMemoryNote } from "./diff";
 import { newId } from "./ids";
 import type { EventRecord, ObservationInput, RawObservation } from "./schemas";
 import { events, save, writes } from "./store";
-import { getRuntime } from "./wiring";
+import { getMemory, getRuntime } from "./wiring";
+import type { GroundedResolution } from "./schemas";
+
+const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9$]+/g, " ").trim();
+
+/** Provenance or it didn't happen: every recalled fact must cite a real page containing its quote. */
+async function verifyProvenance(res: GroundedResolution) {
+  const memory = getMemory();
+  const refs = [...new Set(res.recalled.map((f) => f.source_ref).filter(Boolean))];
+  const pages = new Map(await Promise.all(refs.map(async (r) => [r, await memory.getPage(r)] as const)));
+  const rejected: { ref: string; statement: string; reason: string }[] = [];
+  const recalled = res.recalled.filter((f) => {
+    const page = f.source_ref ? pages.get(f.source_ref) : null;
+    const reason = !f.source_ref ? "no source" : !page ? "cited page not found in GBrain" : !f.quote.trim() || !norm(page).includes(norm(f.quote)) ? "quote not in cited page" : null;
+    if (reason) rejected.push({ ref: f.source_ref || "—", statement: f.statement, reason });
+    return !reason;
+  });
+  return { resolution: { ...res, recalled }, rejected };
+}
 
 export function createObservation(input: ObservationInput): EventRecord {
   const observation: RawObservation = { ...input, id: newId("obs"), createdAt: new Date().toISOString() };
@@ -34,15 +52,19 @@ async function runPipeline(rec: EventRecord) {
     save(rec, { stage: "RESOLVING_MEMORY", message: runtime.via === "qm" ? "QM turn started in scope cortex-demo" : runtime.label, via: runtime.via === "qm" ? "qm" : "companyos" });
     const { hits, resolution, log } = await runtime.ground(rec.event);
     for (const l of log) rec.trace.push({ at: new Date().toISOString(), stage: "RESOLVING_MEMORY", message: l, via: "gbrain" });
-    rec.hits = hits;
-    rec.resolution = resolution;
+    const verified = await verifyProvenance(resolution);
+    rec.rejected = verified.rejected;
+    if (verified.rejected.length)
+      rec.trace.push({ at: new Date().toISOString(), stage: "RESOLVING_MEMORY", message: `provenance check rejected ${verified.rejected.length} fact(s)`, via: "companyos" });
+    rec.hits = hits.filter((h) => verified.resolution.recalled.some((f) => f.source_ref === h.id));
+    rec.resolution = verified.resolution;
     rec.resolvedVia = runtime.via;
-    const { rows, derivedTotalUsd } = buildDiff(rec.observation, rec.event, resolution);
+    const { rows, derivedTotalUsd } = buildDiff(rec.observation, rec.event, verified.resolution);
     rec.diff = rows;
     rec.derivedTotalUsd = derivedTotalUsd;
     rec.memoryNote = buildMemoryNote(rec.observation, rec.event).body;
     rec.stage = "DIFF_READY";
-    save(rec, { stage: "DIFF_READY", message: `${resolution.recalled.length} memories linked, ${rows.length} diff rows`, via: "companyos" });
+    save(rec, { stage: "DIFF_READY", message: `${verified.resolution.recalled.length} memories linked, ${rows.length} diff rows`, via: "companyos" });
   } catch (err) {
     return fail(rec, "resolve", err);
   }
@@ -79,10 +101,13 @@ export async function acceptEvent(id: string, editedNote?: string): Promise<Even
   const entity = rec.event.organization ?? undefined;
   const query = `What do we know about ${[rec.event.organization, rec.event.requirement].filter(Boolean).join(" and ")}?`;
   try {
-    const { hits, log } = await runtime.recall(query, entity);
+    // Independent check: query GBrain directly, not through the agent that did the write.
+    const memory = getMemory();
+    const hits = await memory.recall(query, entity);
+    const log = [`${memory.mode === "live" ? "GBrain" : "fixture"} recall${entity ? ` entity=${entity}` : ""}: "${query}"`];
     const evId = rec.event.id;
     const found = hits.some((h) => h.id === rec.write!.ref || h.snippet.includes(evId) || (h.source ?? "").includes(evId) || h.title === note.title);
-    rec.proof = { query, hits, found, via: runtime.via };
+    rec.proof = { query, hits, found, via: "direct" };
     rec.stage = "ACCEPTED";
     for (const l of log) rec.trace.push({ at: new Date().toISOString(), stage: "ACCEPTED", message: l, via: "gbrain" });
     return save(rec, { stage: "ACCEPTED", message: found ? "fresh recall returned the new note" : "write succeeded but fresh recall did not return it yet", via: "gbrain" });

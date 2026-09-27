@@ -37,7 +37,8 @@ export async function qmFetch(cfg: QmConfig, method: string, path: string, paylo
   const body = payload === undefined ? "" : JSON.stringify(payload);
   const res = await fetch(cfg.url + path, {
     method,
-    headers: signedHeaders(cfg.secret, method, path, body),
+    // Admin routes resolve the caller from x-admin-actor (QM src/api/routes/shared.ts).
+    headers: { ...signedHeaders(cfg.secret, method, path, body), ...(path.startsWith("/v1/admin/") ? { "x-admin-actor": `${cfg.actorId}@${process.env.QM_ORG ?? "acme"}` } : {}) },
     body: body || undefined,
     signal: AbortSignal.timeout(cfg.timeoutMs),
   });

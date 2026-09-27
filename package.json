@@ -9,9 +9,9 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "gbrain:probe": "tsx --env-file-if-exists=.env.local scripts/gbrain-probe.ts",
-    "gbrain:seed": "tsx --env-file-if-exists=.env.local scripts/gbrain-seed.ts",
-    "qm:setup": "tsx --env-file-if-exists=.env.local scripts/qm-setup.ts"
+    "gbrain:probe": "tsx --env-file-if-exists=.env.local scripts/gbrain-probe.mts",
+    "gbrain:seed": "tsx --env-file-if-exists=.env.local scripts/gbrain-seed.mts",
+    "qm:setup": "tsx --env-file-if-exists=.env.local scripts/qm-setup.mts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.128.0",

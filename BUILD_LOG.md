@@ -23,3 +23,9 @@ Net-new repo created during hackathon hours. No prior CompanyOS source reused.
   - `GBRAIN_TOKEN` → `pnpm gbrain:probe`, then `pnpm gbrain:seed`.
   - QM core credentials → `pnpm qm:setup`.
   - `ANTHROPIC_API_KEY` → run the LLM compiler 5×.
+- **15:05** — **River connected.** `river/health.py` (Python `river-client` via `uv`) lists 13 base models and returned a live sample.
+- **15:15** — **QM running locally** from github.com/yc-software/qm (`npm run dev-instance:web` with `HARNESS=codex`).
+  - Core is at :8081 and the web/admin UI at :8129.
+  - The signed core API works.
+  - The `cortex-demo` project was created (`POST /v1/projects`, scope `group:web-project-24f04858…`).
+  - A first real QM turn in that project scope returned `status: ok`.

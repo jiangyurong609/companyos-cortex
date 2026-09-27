@@ -3,6 +3,8 @@ import { buildDiff, buildMemoryNote } from "./diff";
 import { newId } from "./ids";
 import type { EventRecord, ObservationInput, RawObservation } from "./schemas";
 import { events, save, writes } from "./store";
+import { resolveReporter } from "./org";
+import { triage } from "./triage";
 import { getMemory, getRuntime } from "./wiring";
 import type { GroundedResolution } from "./schemas";
 
@@ -38,19 +40,34 @@ function fail(rec: EventRecord, stage: string, err: unknown, retryable = true) {
 }
 
 async function runPipeline(rec: EventRecord) {
+  let compiled;
   try {
-    rec.event = await compileObservation(rec.observation);
-    rec.stage = "COMPILED";
-    save(rec, { stage: "COMPILED", message: `${rec.event.type} via ${rec.event.compiler} compiler`, via: "compiler" });
+    [compiled, rec.reporter] = await Promise.all([compileObservation(rec.observation), resolveReporter(rec.observation.actor)]);
   } catch (err) {
     return fail(rec, "compile", err);
   }
+  // One capture can carry several signals; each becomes its own record and is grounded in parallel.
+  const records = compiled.map((ev, i) => {
+    const r: EventRecord = i === 0 ? rec : { ...rec, id: `${rec.id}-${i + 1}`, hits: [], diff: [], trace: [...rec.trace] };
+    r.event = ev;
+    r.signal = { index: i + 1, count: compiled.length };
+    r.stage = "COMPILED";
+    save(r, {
+      stage: "COMPILED",
+      message: `${ev.type} via ${ev.compiler} compiler${compiled.length > 1 ? ` (signal ${i + 1} of ${compiled.length})` : ""}${rec.reporter ? ` · ${rec.reporter.role}, ${rec.reporter.team} (GBrain ${rec.reporter.ref})` : ""}`,
+      via: "compiler",
+    });
+    return r;
+  });
+  await Promise.all(records.map(ground));
+}
 
+async function ground(rec: EventRecord) {
   const runtime = getRuntime();
   try {
     rec.stage = "RESOLVING_MEMORY";
     save(rec, { stage: "RESOLVING_MEMORY", message: runtime.via === "qm" ? "QM turn started in scope cortex-demo" : runtime.label, via: runtime.via === "qm" ? "qm" : "companyos" });
-    const { hits, resolution, log } = await runtime.ground(rec.event);
+    const { hits, resolution, log } = await runtime.ground(rec.event!);
     for (const l of log) rec.trace.push({ at: new Date().toISOString(), stage: "RESOLVING_MEMORY", message: l, via: "gbrain" });
     const verified = await verifyProvenance(resolution);
     rec.rejected = verified.rejected;
@@ -59,10 +76,12 @@ async function runPipeline(rec: EventRecord) {
     rec.hits = hits.filter((h) => verified.resolution.recalled.some((f) => f.source_ref === h.id));
     rec.resolution = verified.resolution;
     rec.resolvedVia = runtime.via;
-    const { rows, derivedTotalUsd } = buildDiff(rec.observation, rec.event, verified.resolution);
+    const { rows, derivedTotalUsd } = buildDiff(rec.observation, rec.event!, verified.resolution);
     rec.diff = rows;
     rec.derivedTotalUsd = derivedTotalUsd;
-    rec.memoryNote = buildMemoryNote(rec.observation, rec.event).body;
+    rec.memoryNote = buildMemoryNote(rec.observation, rec.event!).body;
+    rec.triage = await triage(rec);
+    rec.trace.push({ at: new Date().toISOString(), stage: "TRIAGED", message: `routed to ${rec.triage.route} (${rec.triage.by}): ${rec.triage.why}`, via: "companyos" });
     rec.stage = "DIFF_READY";
     save(rec, { stage: "DIFF_READY", message: `${verified.resolution.recalled.length} memories linked, ${rows.length} diff rows`, via: "companyos" });
   } catch (err) {
@@ -152,5 +171,30 @@ export async function decideEvent(id: string, proposal: string): Promise<EventRe
   const w = await runtime.write({ key, slug, title: `Decision — ${proposal}`, body });
   rec.decision = { text: proposal, ref: w.ref, via: runtime.via, at: new Date().toISOString() };
   for (const l of w.log) rec.trace.push({ at: new Date().toISOString(), stage: "DECIDED", message: l, via: "gbrain" });
-  return save(rec, { stage: rec.stage, message: `decision written → ${w.ref}`, via: runtime.via === "qm" ? "qm" : "companyos" });
+  save(rec, { stage: rec.stage, message: `decision written → ${w.ref}`, via: runtime.via === "qm" ? "qm" : "companyos" });
+  void reactToDecision(rec, proposal);
+  return rec;
+}
+
+/** The company reacts: QM finds an owner in the org chart and drafts a grounded plan page. */
+async function reactToDecision(rec: EventRecord, proposal: string) {
+  const ev = rec.event!;
+  rec.action = { status: "drafting" };
+  save(rec, { stage: rec.stage, message: "QM drafting action plan…", via: "qm" });
+  try {
+    const p = await getRuntime().plan({
+      decision: proposal,
+      slug: `plans/${ev.id.toLowerCase().replace(/[^a-z0-9-]+/g, "-")}`,
+      eventId: ev.id,
+      summary: `${ev.summary}${rec.derivedTotalUsd ? ` Related opportunities total $${Math.round(rec.derivedTotalUsd / 1000)}K.` : ""}`,
+      evidence: [...new Set(rec.diff.flatMap((d) => d.evidenceRefs).filter((r) => !r.startsWith("observation:")))],
+      decisionRef: rec.decision!.ref,
+    });
+    rec.action = { status: "ready", ref: p.ref, owner: p.owner, steps: p.steps };
+    for (const l of p.log) rec.trace.push({ at: new Date().toISOString(), stage: "ACTING", message: l, via: "qm" });
+    save(rec, { stage: rec.stage, message: `plan ready → ${p.ref} · owner ${p.owner}`, via: "gbrain" });
+  } catch (err) {
+    rec.action = { status: "failed", error: String(err).slice(0, 200) };
+    save(rec, { stage: rec.stage, message: `plan failed: ${rec.action.error}` });
+  }
 }

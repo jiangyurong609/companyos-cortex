@@ -5,7 +5,21 @@ export interface SeedNote {
   body: string;
 }
 
+/** Org chart as GBrain pages: who reports to whom is company memory too. */
+export const PEOPLE = [
+  { slug: "sarah", name: "Sarah", role: "Account Executive", team: "Sales", reportsTo: "Maya", owns: "Acme, Ramp" },
+  { slug: "priya", name: "Priya", role: "Customer Success Manager", team: "Customer Success", reportsTo: "Maya", owns: "Initech, Globex" },
+  { slug: "leo", name: "Leo", role: "Staff Engineer", team: "Product", reportsTo: "Dana", owns: "Authentication" },
+  { slug: "maya", name: "Maya", role: "VP Revenue", team: "Sales", reportsTo: "Yurong", owns: "Sales and Customer Success" },
+  { slug: "dana", name: "Dana", role: "Head of Product", team: "Product", reportsTo: "Yurong", owns: "Roadmap" },
+];
+
 export const SEED_NOTES: SeedNote[] = [
+  ...PEOPLE.map((p) => ({
+    path: `people/${p.slug}`,
+    title: `${p.name} — ${p.role}`,
+    body: `${p.name} is ${p.role} at Northstar API.\n\nRole: ${p.role}\nTeam: ${p.team}\nReports to: ${p.reportsTo}\nOwns: ${p.owns}`,
+  })),
   {
     path: "company/overview",
     title: "Northstar API — company overview",

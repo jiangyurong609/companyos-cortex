@@ -130,9 +130,40 @@ export interface WriteResult {
   raw?: unknown;
 }
 
+export interface Reporter {
+  name: string;
+  role: string;
+  team: string;
+  reportsTo: string;
+  /** GBrain page the org info came from. */
+  ref: string;
+}
+
+export interface Triage {
+  route: "ceo" | "manager";
+  priority: "high" | "medium" | "low";
+  why: string;
+  by: "policy" | "river" | "rule";
+  /** Number of past CEO decisions River saw as examples. */
+  learnedFrom: number;
+}
+
+export interface ActionPlan {
+  status: "drafting" | "ready" | "failed";
+  ref?: string;
+  owner?: string;
+  steps?: string[];
+  error?: string;
+}
+
 export interface EventRecord {
   id: string;
   observation: RawObservation;
+  /** Position of this signal within a multi-signal capture. */
+  signal?: { index: number; count: number };
+  reporter?: Reporter | null;
+  triage?: Triage;
+  action?: ActionPlan;
   stage: EventStage;
   event?: RealityEvent;
   hits: MemoryHit[];

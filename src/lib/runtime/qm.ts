@@ -3,7 +3,7 @@ import { z } from "zod";
 import { eventSlug, pageContent } from "../memory/gbrain";
 import type { MemoryWrite } from "../memory/types";
 import { GroundedResolution, type MemoryHit, type RealityEvent } from "../schemas";
-import type { TurnRuntime } from "./types";
+import type { PlanInput, TurnRuntime } from "./types";
 
 /**
  * QM core API client. Turns run in the `cortex-demo` project's shared scope
@@ -78,6 +78,7 @@ Put recommendations only in "proposals" — never in "recalled". Do not compute 
 Reply with ONLY a JSON object in a \`\`\`json fence, matching:
 {"recalled":[{"statement":string,"organization":string|null,"requirement":string|null,"value_usd":number|null,"source_ref":string,"quote":string}],"contradictions":[string],"missing":[string],"proposals":[string],"source_refs":[string]}`;
 
+const PlanReply = z.object({ ref: z.string(), owner: z.string(), steps: z.array(z.string()).min(1).max(6) });
 const HitsReply = z.object({ hits: z.array(z.object({ id: z.string(), title: z.string(), snippet: z.string(), source: z.string().optional() })) });
 const WriteReply = z.object({ ref: z.string(), written: z.boolean().optional() });
 
@@ -157,6 +158,21 @@ Reply with ONLY a JSON object in a \`\`\`json fence: {"ref": "${slug}", "written
 ${pageContent(input.title, input.body, ["companyos-cortex", input.slug ? "decision" : "reality-event"])}--- END PAGE ---`;
     const { value, log } = await this.structuredTurn(`cortex:${input.key}:write`, text, WriteReply, `cortex-write-${input.key}`);
     return { ref: value.ref, raw: value, log: ["QM → GBrain put_page + remember", ...log] };
+  }
+
+  async plan(input: PlanInput) {
+    const text = `The CEO just approved a decision. Make the company act on it.
+Decision: "${input.decision}"
+Context: ${input.summary}
+Evidence (GBrain pages): ${input.evidence.join(", ")}
+Decision page: ${input.decisionRef}
+
+1. Use GBrain search over people pages (slugs people/...) to find who should own this (by Role / Owns fields). Name exactly one owner.
+2. Draft 3-5 concrete next steps for the coming week. Each step must be grounded in the evidence pages; no invented facts or numbers.
+3. Call put_page with slug "${input.slug}" and a markdown page: title "Plan — ${input.decision}", sections Decision (link ${input.decisionRef}), Owner, Why (cite evidence slugs), Next steps, Open questions.
+Reply with ONLY a JSON object in a \`\`\`json fence: {"ref": "${input.slug}", "owner": "<name — role>", "steps": [string]}`;
+    const { value, log } = await this.structuredTurn(`cortex:${input.eventId}:plan`, text, PlanReply, `cortex-plan-${input.eventId}`);
+    return { ...value, log: ["QM → GBrain search people + put_page plan", ...log] };
   }
 
   async recall(query: string, entity?: string) {

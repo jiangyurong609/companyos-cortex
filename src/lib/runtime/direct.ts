@@ -1,7 +1,7 @@
 import { moneyMentions } from "../compiler";
 import type { CompanyMemory, MemoryWrite } from "../memory/types";
 import type { GroundedResolution, MemoryHit, RealityEvent, RecalledFact } from "../schemas";
-import type { TurnRuntime } from "./types";
+import type { PlanInput, TurnRuntime } from "./types";
 
 const REQ = /\b(SAML|SSO|SCIM|SOC ?2|HIPAA|OAuth)\b/i;
 
@@ -53,6 +53,13 @@ export class DirectRuntime implements TurnRuntime {
   async write(input: MemoryWrite) {
     const r = await this.memory.remember(input);
     return { ...r, log: [`${this.memory.mode === "live" ? "gbrain" : "fixture"} remember → ${r.ref}`] };
+  }
+
+  async plan(input: PlanInput) {
+    const steps = [`Confirm scope of "${input.decision}" with the affected customers`, "Estimate engineering effort and risks", "Report back with a go / no-go"];
+    const body = `# Plan — ${input.decision}\n\nDecision: ${input.decisionRef}\n\nWhy: ${input.evidence.join(", ")}\n\nNext steps:\n${steps.map((s) => `- ${s}`).join("\n")}`;
+    const r = await this.memory.remember({ key: `plan-${input.eventId}`, slug: input.slug, title: `Plan — ${input.decision}`, body });
+    return { ref: r.ref, owner: "unassigned (QM not connected)", steps, log: ["direct plan template (QM not connected)"] };
   }
 
   async recall(query: string, entity?: string) {

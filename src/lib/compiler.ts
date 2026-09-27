@@ -21,7 +21,7 @@ export function llmCompilerAvailable(): boolean {
 export const RIVER_SIDECAR_URL = process.env.RIVER_SIDECAR_URL ?? "http://127.0.0.1:8765";
 
 /** River-hosted model via the Python sidecar (river/sidecar.py). Validated + invention-guarded. */
-async function compileWithRiver(obs: RawObservation): Promise<CompiledEvent> {
+async function compileWithRiver(obs: RawObservation): Promise<CompiledEvent[]> {
   let lastError: unknown;
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
@@ -31,13 +31,19 @@ async function compileWithRiver(obs: RawObservation): Promise<CompiledEvent> {
         body: JSON.stringify({ text: obs.text }),
         signal: AbortSignal.timeout(30_000),
       });
-      const j = (await res.json()) as { event?: unknown; error?: string };
-      if (!res.ok || !j.event) throw new Error(j.error ?? `sidecar ${res.status}`);
-      const parsed = guardAgainstInvention(obs.text, CompiledEvent.parse(j.event));
-      // A requirement must be a capability, not a clause; prefer the deterministic match if River rambles.
-      if (parsed.requirement && parsed.requirement.split(/\s+/).length > 4)
-        parsed.requirement = compileDeterministic(obs.text).requirement ?? null;
-      return parsed;
+      const j = (await res.json()) as { events?: unknown[]; error?: string };
+      if (!res.ok || !j.events) throw new Error(j.error ?? `sidecar ${res.status}`);
+      // Validate each extracted signal independently; drop malformed ones rather than failing the capture.
+      const events = j.events.flatMap((e) => {
+        const r = CompiledEvent.safeParse(e);
+        if (!r.success) return [];
+        const parsed = guardAgainstInvention(obs.text, r.data);
+        // A requirement must be a capability, not a clause; prefer the deterministic match if River rambles.
+        if (parsed.requirement && parsed.requirement.split(/\s+/).length > 4) parsed.requirement = compileDeterministic(obs.text).requirement ?? null;
+        return [parsed];
+      });
+      if (events.length === 0) throw new Error("no valid signals in River output");
+      return events.slice(0, 5);
     } catch (err) {
       lastError = err;
     }
@@ -45,17 +51,18 @@ async function compileWithRiver(obs: RawObservation): Promise<CompiledEvent> {
   throw lastError;
 }
 
-export async function compileObservation(obs: RawObservation): Promise<RealityEvent> {
+/** Compile raw input into one or more Reality Events (long notes can carry several signals). */
+export async function compileObservation(obs: RawObservation): Promise<RealityEvent[]> {
   if (process.env.CORTEX_COMPILER === "river" || (!llmCompilerAvailable() && process.env.RIVER_API_KEY)) {
     try {
-      return finalize(obs, await compileWithRiver(obs), "river");
+      return (await compileWithRiver(obs)).map((e) => finalize(obs, e, "river"));
     } catch {
       // River unavailable or output failed validation: fall back, and the event says so.
-      return finalize(obs, compileDeterministic(obs.text), "deterministic");
+      return [finalize(obs, compileDeterministic(obs.text), "deterministic")];
     }
   }
   if (!llmCompilerAvailable() || process.env.CORTEX_COMPILER === "deterministic") {
-    return finalize(obs, compileDeterministic(obs.text), "deterministic");
+    return [finalize(obs, compileDeterministic(obs.text), "deterministic")];
   }
   const client = new Anthropic();
   let lastError: unknown;
@@ -72,7 +79,7 @@ export async function compileObservation(obs: RawObservation): Promise<RealityEv
       if (response.stop_reason === "refusal") throw new Error("compiler model refused the observation");
       if (!response.parsed_output) throw new Error("compiler returned no parseable output");
       const parsed = CompiledEvent.parse(response.parsed_output);
-      return finalize(obs, guardAgainstInvention(obs.text, parsed), "llm");
+      return [finalize(obs, guardAgainstInvention(obs.text, parsed), "llm")];
     } catch (err) {
       lastError = err;
     }

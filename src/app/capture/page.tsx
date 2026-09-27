@@ -4,6 +4,15 @@ import { useRef, useState, useSyncExternalStore } from "react";
 import { usePoll } from "@/components/usePoll";
 import type { EventRecord } from "@/lib/schemas";
 
+const PEOPLE = [
+  { name: "Sarah", role: "Account Executive" },
+  { name: "Priya", role: "Customer Success" },
+  { name: "Leo", role: "Engineering" },
+];
+
+const NOTES =
+  "Call notes, Acme QBR. Their security team won't approve us without SAML; Sarah says it's blocking the $120K deal and they need an answer Friday. Also they mentioned Stytch pitched them last week with SSO included. Separately their data team hit rate limits twice this month and wants a higher tier.";
+
 const DEMO =
   "I just finished the Acme call. Their security team won't approve us without SAML. Sarah says it's blocking the $120K deal, and they need an answer Friday.";
 
@@ -17,7 +26,7 @@ function speechCtor(): (new () => SpeechRec) | undefined {
 
 export default function CapturePage() {
   const [text, setText] = useState("");
-  const [actor, setActor] = useState("Yurong");
+  const [actor, setActor] = useState("Sarah");
   const [sentId, setSentId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [menu, setMenu] = useState(false);
@@ -25,7 +34,9 @@ export default function CapturePage() {
   const [voiced, setVoiced] = useState(false);
   const canVoice = useSyncExternalStore(noopSubscribe, () => speechCtor() !== undefined, () => false);
   const recRef = useRef<SpeechRec | null>(null);
-  const rec = usePoll<EventRecord>(sentId ? `/api/events/${sentId}` : null);
+  const list = usePoll<{ events: EventRecord[] }>(sentId ? "/api/events" : null);
+  const signals = (list?.events ?? []).filter((e) => e.observation.id === sentId).sort((a, b) => a.id.localeCompare(b.id));
+  const rec = signals[0];
 
   const recognizer = () => {
     const Ctor = speechCtor();
@@ -65,16 +76,6 @@ export default function CapturePage() {
     setSentId(j.observationId);
   };
 
-  const ev = rec?.event;
-  const checks: [string, boolean][] = ev
-    ? [
-        [ev.organization ?? "customer unknown", Boolean(ev.organization)],
-        [ev.requirement ?? "no requirement", Boolean(ev.requirement)],
-        [ev.opportunity_value_usd ? `$${Math.round(ev.opportunity_value_usd / 1000)}K opportunity` : "no value stated", Boolean(ev.opportunity_value_usd)],
-        [ev.deadline_text ? `deadline: ${ev.deadline_text}` : "no deadline", Boolean(ev.deadline_text)],
-      ]
-    : [];
-
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col px-5 pb-[max(env(safe-area-inset-bottom),20px)] pt-[max(env(safe-area-inset-top),16px)]">
       <header className="flex items-center justify-between py-2 font-mono text-xs tracking-widest text-muted">
@@ -86,8 +87,20 @@ export default function CapturePage() {
 
       {!sentId ? (
         <>
-          <h1 className="mt-10 text-3xl font-semibold tracking-tight">What just happened?</h1>
-          <p className="mt-2 text-sm text-muted">Say it the way you&apos;d tell a teammate. Cortex does the rest.</p>
+          <div className="mt-6 flex gap-2">
+            {PEOPLE.map((p) => (
+              <button
+                key={p.name}
+                onClick={() => setActor(p.name)}
+                className={`flex-1 rounded-xl border px-2 py-2 text-left text-xs ${actor === p.name ? "border-observed text-fg" : "border-line text-muted"}`}
+              >
+                <span className="block text-sm font-medium">{p.name}</span>
+                {p.role}
+              </button>
+            ))}
+          </div>
+          <h1 className="mt-8 text-3xl font-semibold tracking-tight">What just happened?</h1>
+          <p className="mt-2 text-sm text-muted">Say it, or paste call notes or a thread. No status report needed — Cortex routes it to whoever needs to know.</p>
 
           {canVoice && (
             <button
@@ -105,7 +118,7 @@ export default function CapturePage() {
             value={text}
             onChange={(e) => setText(e.target.value)}
             rows={6}
-            placeholder="I just finished the call with…"
+            placeholder="I just finished the call with… (or paste notes)"
             className="mt-8 w-full resize-none rounded-2xl border border-line bg-panel p-4 text-base leading-relaxed outline-none placeholder:text-muted/60 focus:border-observed"
           />
           {error && <p className="mt-2 text-sm text-danger">{error}</p>}
@@ -118,7 +131,10 @@ export default function CapturePage() {
               {menu && (
                 <div className="absolute bottom-14 left-0 w-56 rounded-xl border border-line bg-panel p-1 text-sm shadow-xl">
                   <button className="w-full rounded-lg px-3 py-2 text-left hover:bg-line" onClick={() => { setText(DEMO); setVoiced(false); setMenu(false); }}>
-                    Use demo transcript
+                    Use demo sentence
+                  </button>
+                  <button className="w-full rounded-lg px-3 py-2 text-left hover:bg-line" onClick={() => { setText(NOTES); setVoiced(false); setMenu(false); }}>
+                    Paste demo call notes
                   </button>
                   <label className="flex items-center gap-2 px-3 py-2 text-muted">
                     as
@@ -139,21 +155,32 @@ export default function CapturePage() {
       ) : (
         <section className="mt-16">
           <p className="font-mono text-xs tracking-widest text-observed">REALITY EVENT CAPTURED</p>
-          <h1 className="mt-3 text-2xl font-semibold">{ev ? "Compiled." : "Compiling reality…"}</h1>
-          <ul className="mt-8 space-y-3 font-mono text-lg">
-            {checks.map(([label, ok], i) => (
-              <li key={label} className="rise flex gap-3" style={{ animationDelay: `${i * 120}ms` }}>
-                <span className={ok ? "text-proposed" : "text-muted"}>{ok ? "✓" : "–"}</span>
-                <span className={ok ? "" : "text-muted"}>{label}</span>
-              </li>
-            ))}
+          <h1 className="mt-3 text-2xl font-semibold">
+            {signals.some((r) => r.event) ? `${signals.length} signal${signals.length > 1 ? "s" : ""} extracted` : "Understanding…"}
+          </h1>
+          <ul className="mt-6 space-y-3">
+            {signals
+              .filter((r) => r.event)
+              .map((r, i) => (
+                <li key={r.id} className="rise rounded-xl border border-line bg-panel p-3" style={{ animationDelay: `${i * 120}ms` }}>
+                  <p className="text-sm">{r.event!.summary}</p>
+                  <p className="mt-1 font-mono text-[11px] text-muted">
+                    {[r.event!.organization, r.event!.requirement, r.event!.opportunity_value_usd && `$${Math.round(r.event!.opportunity_value_usd / 1000)}K`, r.event!.deadline_text]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </p>
+                  <p className={`mt-1 font-mono text-[11px] ${r.triage ? (r.triage.route === "ceo" ? "text-derived" : "text-recalled") : "text-observed"}`}>
+                    {r.triage ? `→ routed to ${r.triage.route === "ceo" ? "CEO" : `${r.reporter?.reportsTo ?? "manager"} (manager)`}` : "grounding in company memory…"}
+                  </p>
+                </li>
+              ))}
           </ul>
           {rec && (
             <p className="mt-10 text-sm text-muted">
               {rec.stage === "FAILED"
                 ? `Failed at ${rec.error?.stage}: ${rec.error?.message}`
-                : rec.stage === "DIFF_READY" || rec.stage === "ACCEPTED"
-                  ? "Company understanding updated — review on Command."
+                : signals.every((r) => r.triage)
+                  ? "Done. You wrote zero status reports."
                   : "Updating company understanding…"}
             </p>
           )}

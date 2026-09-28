@@ -74,3 +74,8 @@ Net-new repo created during hackathon hours. No prior CompanyOS source reused.
     - The history is 90 synthetic, clearly marked decisions plus live ones.
   - `/learn` page.
   - `river/train_router.py`: LoRA SFT on River from the exported labels, evaluated base vs tuned on the same held-out split.
+- **18:35** — **River LoRA fine-tune complete.** `Qwen/Qwen3.5-9B`, rank 8, 12 steps, 69 training decisions, 4.2 min on River.
+  - Loss went 28.6 → 0.24.
+  - Held-out routing accuracy: base model 62% → fine-tuned company model **95%** (n=21, same split as the policy learner).
+  - Checkpoint: `river://b500cda7-…/sampler_weights/cortex-router`.
+  - Caveat: the labels are mostly seeded synthetic history with a learnable pattern, and n is small. The model is a candidate and isn't promoted to live routing.

@@ -1,0 +1,23 @@
+{
+  "name": "cortex-launch-video",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "manifest": "node scripts/clips-manifest.mjs",
+    "studio": "node scripts/clips-manifest.mjs && remotion studio",
+    "render": "node scripts/clips-manifest.mjs && remotion render CortexLaunch out/cortex-launch.mp4",
+    "preview": "node scripts/clips-manifest.mjs && remotion render CortexLaunch out/preview.mp4 --scale=0.5",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@remotion/cli": "^4.0.290",
+    "@remotion/google-fonts": "^4.0.290",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "remotion": "^4.0.290"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "typescript": "^5.8.0"
+  }
+}

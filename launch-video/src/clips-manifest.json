@@ -1,0 +1,104 @@
+{
+  "generatedAt": "2026-09-27T23:57:28.000Z",
+  "publicDir": "public",
+  "clips": {
+    "phone-capture": {
+      "exists": true,
+      "width": 860,
+      "height": 1864,
+      "durationSec": 103.36,
+      "marks": {
+        "sent": 11,
+        "routed": 99.4,
+        "typing": 2.5,
+        "extracted": 55
+      },
+      "points": {}
+    },
+    "exec-workday": {
+      "exists": true,
+      "width": 1920,
+      "height": 1080,
+      "durationSec": 291.64,
+      "marks": {
+        "phone_sent": 20.64,
+        "workday_start": 21.6,
+        "first_signal": 38.72,
+        "all_triaged": 176,
+        "end": 186
+      },
+      "points": {
+        "kpis": [
+          0.16,
+          0.17
+        ],
+        "stake": [
+          0.3,
+          0.165
+        ],
+        "routing": [
+          0.48,
+          0.43
+        ],
+        "status_reports": [
+          0.79,
+          0.17
+        ]
+      }
+    },
+    "brief-digest": {
+      "exists": true,
+      "width": 1920,
+      "height": 1080,
+      "durationSec": 26.56,
+      "marks": {
+        "digest_ready": 0,
+        "headline": 0
+      },
+      "points": {
+        "headline": [
+          0.4,
+          0.23
+        ]
+      }
+    },
+    "brief-approve": {
+      "exists": true,
+      "width": 1920,
+      "height": 1080,
+      "durationSec": 109.68,
+      "marks": {
+        "approve_click": 13.9,
+        "decision_written": 40.82,
+        "plan_ready": 102.2,
+        "end": 97.15
+      },
+      "points": {
+        "approve_click": [
+          717,
+          718
+        ],
+        "plan_ready": [
+          0.36,
+          0.33
+        ]
+      }
+    },
+    "team": {
+      "exists": true,
+      "width": 1920,
+      "height": 1080,
+      "durationSec": 9.48,
+      "marks": {},
+      "points": {}
+    },
+    "evidence": {
+      "exists": true,
+      "width": 1920,
+      "height": 1080,
+      "durationSec": 13.76,
+      "marks": {},
+      "points": {}
+    }
+  }
+}

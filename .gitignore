@@ -41,3 +41,10 @@ yarn-error.log*
 next-env.d.ts
 data/
 !.env.example
+
+# launch video build artifacts
+launch-video/node_modules/
+launch-video/out/
+launch-video/raw/
+launch-video/public/clips/
+launch-video/public/audio/

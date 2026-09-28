@@ -65,3 +65,12 @@ Net-new repo created during hackathon hours. No prior CompanyOS source reused.
   - The CEO approved "Review SAML roadmap priority": fact saved with proof ✓, decision written via QM.
   - A QM turn assigned Dana (Head of Product) from the GBrain org chart and wrote `plans/<event>`, a 4-step plan citing the $340K.
   - `/exec` executive dashboard: KPI count-ups, $ at stake by capability, people→team→CEO/manager flow, timeline, a knowledge-kind breakdown, and a live stream with motion.
+- **18:00** — **Company learning loop (toward company RSI).**
+  - **Decision ledger** (`data/ledger.jsonl`): the prediction for every routed signal, plus the human label.
+    - Labels come from the CEO approving or sending an item back to the manager, and from managers merging or escalating.
+    - Outcomes ("worked" / "didn't") are the reward, written to GBrain as `outcomes/*`.
+  - **Routing is an explicit, versioned policy.** A learner searches rule changes against the ledger and proposes one only if it improves agreement with human decisions on held-out data. A human merges it, the new version is published to GBrain `policies/routing`, and rollback is available.
+    - Live result: "Route competitor signals to the CEO", held-out 62% → 86% (n=21).
+    - The history is 90 synthetic, clearly marked decisions plus live ones.
+  - `/learn` page.
+  - `river/train_router.py`: LoRA SFT on River from the exported labels, evaluated base vs tuned on the same held-out split.

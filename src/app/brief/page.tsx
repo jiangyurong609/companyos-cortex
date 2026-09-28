@@ -53,9 +53,10 @@ export default function BriefPage() {
             Northstar API <span className="text-muted">· {since ? `since ${fmtTime(since)}` : "today"}</span>
           </p>
         </div>
-        <Link href="/command" className="font-mono text-xs text-muted hover:text-fg">
-          evidence view →
-        </Link>
+        <nav className="flex gap-4 font-mono text-xs text-muted">
+          <Link href="/learn" className="hover:text-fg">company learning →</Link>
+          <Link href="/command" className="hover:text-fg">evidence view →</Link>
+        </nav>
       </header>
 
       {events.length === 0 && (
@@ -152,6 +153,7 @@ export default function BriefPage() {
                 </div>
               )}
               {r.action?.status === "failed" && <p className="mt-2 font-mono text-xs text-danger">plan failed: {r.action.error}</p>}
+              <Outcome rec={r} />
             </div>
           ))}
         </section>
@@ -273,6 +275,14 @@ function DecisionCard({ rec, cluster, hero }: { rec: EventRecord; cluster: Clust
               {busy === "merge" ? "Merging…" : "Merge facts only"}
             </button>
           )}
+          <button
+            disabled={!!busy}
+            onClick={() => act("reroute", `/api/events/${rec.id}/route-to`, { route: "manager", by: "ceo" })}
+            title="Recorded as a learning signal for routing"
+            className="h-11 rounded-full px-3 text-sm text-muted hover:text-fg disabled:opacity-50"
+          >
+            Not for me → {rec.reporter?.reportsTo ?? "manager"}
+          </button>
           {rec.stage === "ACCEPTED" && <span className="font-mono text-xs text-recalled">✓ facts in company memory</span>}
           <Link href="/command" className="ml-auto font-mono text-xs text-muted hover:text-fg">
             see evidence →
@@ -281,5 +291,29 @@ function DecisionCard({ rec, cluster, hero }: { rec: EventRecord; cluster: Clust
       )}
       {err && <p className="mt-3 font-mono text-xs text-danger">{err}</p>}
     </article>
+  );
+}
+
+/** Close the loop: did the decision work? This is the reward the company learns from. */
+function Outcome({ rec }: { rec: EventRecord }) {
+  const [busy, setBusy] = useState(false);
+  if (rec.outcome)
+    return (
+      <p className={`mt-3 font-mono text-xs ${rec.outcome.result === "worked" ? "text-proposed" : "text-danger"}`}>
+        outcome: {rec.outcome.result === "worked" ? "worked" : "didn't work"} · {rec.outcome.ref} ·{" "}
+        <Link href="/learn" className="underline-offset-2 hover:underline">the company learns from this →</Link>
+      </p>
+    );
+  const post = async (result: "worked" | "didnt") => {
+    setBusy(true);
+    await fetch(`/api/events/${rec.id}/outcome`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ result, source: "CEO" }) });
+    setBusy(false);
+  };
+  return (
+    <div className="mt-3 flex items-center gap-2 font-mono text-xs text-muted">
+      <span>Did it work?</span>
+      <button disabled={busy} onClick={() => post("worked")} className="rounded-full border border-proposed/40 px-2.5 py-1 text-proposed disabled:opacity-50">✓ worked</button>
+      <button disabled={busy} onClick={() => post("didnt")} className="rounded-full border border-danger/40 px-2.5 py-1 text-danger disabled:opacity-50">✗ didn&apos;t</button>
+    </div>
   );
 }

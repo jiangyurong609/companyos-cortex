@@ -4,6 +4,7 @@ import { newId } from "./ids";
 import type { EventRecord, ObservationInput, RawObservation } from "./schemas";
 import { events, save, writes } from "./store";
 import { resolveReporter } from "./org";
+import { recordLabel, recordOutcome, recordPrediction } from "./learning/ledger";
 import { triage } from "./triage";
 import { getMemory, getRuntime } from "./wiring";
 import type { GroundedResolution } from "./schemas";
@@ -106,6 +107,7 @@ async function groundNow(rec: EventRecord) {
     rec.derivedTotalUsd = derivedTotalUsd;
     rec.memoryNote = buildMemoryNote(rec.observation, rec.event!).body;
     rec.triage = await triage(rec);
+    recordPrediction(rec);
     rec.trace.push({ at: new Date().toISOString(), stage: "TRIAGED", message: `routed to ${rec.triage.route} (${rec.triage.by}): ${rec.triage.why}`, via: "companyos" });
     rec.stage = "DIFF_READY";
     save(rec, { stage: "DIFF_READY", message: `${verified.resolution.recalled.length} memories linked, ${rows.length} diff rows`, via: "companyos" });
@@ -114,7 +116,8 @@ async function groundNow(rec: EventRecord) {
   }
 }
 
-export async function acceptEvent(id: string, editedNote?: string): Promise<EventRecord> {
+export async function acceptEvent(id: string, editedNote?: string, by?: "ceo" | "manager"): Promise<EventRecord> {
+  if (by) recordLabel(id, by === "manager" ? "manager" : "ceo", by, "merged");
   const rec = events.get(id);
   if (!rec?.event) throw new Error("event not found or not compiled");
   // Idempotent: a repeated accept returns the original write.
@@ -174,6 +177,7 @@ export async function decideEvent(id: string, proposal: string): Promise<EventRe
   let rec: EventRecord | undefined = events.get(id);
   if (!rec?.event) throw new Error("event not found or not compiled");
   if (rec.decision) return rec; // idempotent
+  recordLabel(id, "ceo", "ceo", "approved");
   if (!rec.diff.some((r) => r.kind === "proposed" && r.title === proposal)) throw new Error("unknown proposal");
   if (rec.stage === "DIFF_READY") rec = await acceptEvent(id);
   const runtime = getRuntime();
@@ -222,4 +226,36 @@ async function reactToDecision(rec: EventRecord, proposal: string) {
     rec.action = { status: "failed", error: String(err).slice(0, 200) };
     save(rec, { stage: rec.stage, message: `plan failed: ${rec.action.error}` });
   }
+}
+
+/** A human re-routes an item: the CEO sends it back to a manager, or a manager escalates it. That override is a label. */
+export function rerouteEvent(id: string, route: "ceo" | "manager", by: "ceo" | "manager"): EventRecord {
+  const rec = events.get(id);
+  if (!rec?.triage) throw new Error("event not triaged yet");
+  const from = rec.triage.route;
+  rec.triage = { ...rec.triage, route, by: "rule", why: `${by === "ceo" ? "CEO" : "Manager"} re-routed this (${from} → ${route}); recorded as a learning signal.` };
+  recordLabel(id, route, by, from === route ? "confirmed" : "override");
+  return save(rec, { stage: rec.stage, message: `${by} re-routed ${from} → ${route} (label recorded)`, via: "companyos" });
+}
+
+/** Close the loop: record whether a decision worked. Written to GBrain as outcomes/<event>. */
+export async function recordEventOutcome(id: string, result: "worked" | "didnt", note: string | undefined, source: string) {
+  const rec = events.get(id);
+  const entry = recordOutcome(id, result, source, note);
+  if (!entry) throw new Error("no ledger entry for this event");
+  const slug = `outcomes/${id.toLowerCase().replace(/[^a-z0-9-]+/g, "-")}`;
+  const body = [
+    `# Outcome — ${rec?.decision?.text ?? entry.summary}`,
+    "",
+    `Result: ${result === "worked" ? "worked" : "did not work"}${note ? ` — ${note}` : ""}`,
+    `Recorded by: ${source}`,
+    rec?.decision ? `Decision: ${rec.decision.ref}` : "",
+    rec?.action?.ref ? `Plan: ${rec.action.ref}` : "",
+  ].filter(Boolean).join("\n");
+  const w = await getMemory().remember({ key: `outcome-${id}`, slug, title: `Outcome — ${entry.summary}`, body });
+  if (rec) {
+    rec.outcome = { result, note, ref: w.ref, source };
+    save(rec, { stage: rec.stage, message: `outcome recorded: ${result} → ${w.ref}`, via: "gbrain" });
+  }
+  return { entry, ref: w.ref };
 }

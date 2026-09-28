@@ -166,6 +166,8 @@ export interface EventRecord {
   reporter?: Reporter | null;
   triage?: Triage;
   action?: ActionPlan;
+  /** Whether the decision worked — the reward signal. */
+  outcome?: { result: "worked" | "didnt"; note?: string; ref?: string; source: string };
   stage: EventStage;
   event?: RealityEvent;
   hits: MemoryHit[];

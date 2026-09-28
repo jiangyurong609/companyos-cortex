@@ -1,6 +1,8 @@
 import { RIVER_SIDECAR_URL } from "./compiler";
 import { fmtUsd } from "./diff";
 import type { EventRecord, Triage } from "./schemas";
+import { featuresOf } from "./learning/ledger";
+import { applyPolicy, policyStore } from "./learning/policy";
 import { events } from "./store";
 
 /** Past human decisions become River's in-context examples of this CEO's judgment. */
@@ -23,11 +25,13 @@ export async function triage(rec: EventRecord): Promise<Triage> {
   const related = rec.diff.filter((d) => d.id.startsWith("recalled-")).length;
   const stakes = rec.derivedTotalUsd ?? ev.opportunity_value_usd ?? 0;
   const past = pastDecisions();
-  if (related >= 1 && stakes >= 100_000)
+  const { current } = policyStore();
+  const rule = applyPolicy(current.rules, featuresOf(rec));
+  if (rule)
     return {
-      route: "ceo",
-      priority: "high",
-      why: `Policy: a pattern across ${related + 1} customers with ${fmtUsd(stakes)} at stake always reaches the CEO.`,
+      route: rule.route,
+      priority: rule.route === "ceo" ? "high" : "medium",
+      why: `Policy v${current.version}: ${rule.why}${related && stakes ? ` (${related + 1} customers, ${fmtUsd(stakes)})` : ""}`,
       by: "policy",
       learnedFrom: past.length,
     };

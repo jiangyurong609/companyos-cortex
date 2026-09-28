@@ -50,9 +50,10 @@ export default function TeamPage({ params }: { params: Promise<{ team: string }>
 function TeamItem({ rec }: { rec: EventRecord }) {
   const [busy, setBusy] = useState(false);
   const ev = rec.event;
-  const post = async (action: "accept" | "reject") => {
+  const post = async (action: "accept" | "reject" | "route-to") => {
     setBusy(true);
-    await fetch(`/api/events/${rec.id}/${action}`, { method: "POST", headers: { "content-type": "application/json" }, body: "{}" });
+    const body = action === "route-to" ? { route: "ceo", by: "manager" } : action === "accept" ? { by: "manager" } : {};
+    await fetch(`/api/events/${rec.id}/${action}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
     setBusy(false);
   };
   const escalated = rec.triage?.route === "ceo";
@@ -79,6 +80,9 @@ function TeamItem({ rec }: { rec: EventRecord }) {
         <div className="mt-4 flex gap-3">
           <button disabled={busy} onClick={() => post("accept")} className="h-9 rounded-full bg-fg px-4 text-sm font-medium text-bg disabled:opacity-50">
             {busy ? "Saving…" : "Merge into company memory"}
+          </button>
+          <button disabled={busy} onClick={() => post("route-to")} title="Recorded as a learning signal for routing" className="h-9 rounded-full border border-derived/50 px-4 text-sm text-derived disabled:opacity-50">
+            ↑ Escalate to CEO
           </button>
           <button disabled={busy} onClick={() => post("reject")} className="h-9 rounded-full border border-line px-4 text-sm text-muted disabled:opacity-50">
             Not accurate

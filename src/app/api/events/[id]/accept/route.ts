@@ -1,9 +1,9 @@
 import { acceptEvent } from "@/lib/pipeline";
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const body = (await req.json().catch(() => ({}))) as { note?: string };
+  const body = (await req.json().catch(() => ({}))) as { note?: string; by?: "ceo" | "manager" };
   try {
-    return Response.json(await acceptEvent((await params).id, typeof body.note === "string" ? body.note : undefined));
+    return Response.json(await acceptEvent((await params).id, typeof body.note === "string" ? body.note : undefined, body.by === "ceo" || body.by === "manager" ? body.by : undefined));
   } catch (err) {
     return Response.json({ error: String(err) }, { status: 409 });
   }

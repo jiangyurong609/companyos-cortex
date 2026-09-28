@@ -91,6 +91,7 @@ function Header({ status }: { status: StatusResponse | null }) {
         <Link href="/capture" className="text-muted transition-colors hover:text-fg">Capture</Link>
         <Link href="/command" className="text-muted transition-colors hover:text-fg">Evidence</Link>
         <Link href="/team/sales" className="text-muted transition-colors hover:text-fg">Managers</Link>
+        <Link href="/learn" className="text-muted transition-colors hover:text-fg">Learning</Link>
         <Link href="/brief" className="rounded-full bg-fg px-3.5 py-1.5 font-medium text-bg transition-transform hover:scale-[1.03]">
           CEO brief →
         </Link>

@@ -3,7 +3,7 @@ import {AbsoluteFill, Audio, Sequence, interpolate, staticFile, useCurrentFrame}
 import {C, DURATION, SectionId, TIMELINE} from './theme';
 import {Shell} from './ui';
 import {Gone, PromiseScene, Quote, Relay} from './scenes/Intro';
-import {Capture, Connected, Decide, Digest, Trust} from './scenes/Product';
+import {Capture, Connected, Decide, Digest, Learn, Trust} from './scenes/Product';
 import {Close, Stack} from './scenes/Outro';
 
 const SCENES: Record<SectionId, React.FC<{frames: number}>> = {
@@ -16,6 +16,7 @@ const SCENES: Record<SectionId, React.FC<{frames: number}>> = {
   connected: Connected,
   decide: Decide,
   trust: Trust,
+  learn: Learn,
   stack: Stack,
   close: Close,
 };

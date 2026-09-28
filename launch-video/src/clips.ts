@@ -7,7 +7,8 @@ export type ClipName =
   | 'brief-digest'
   | 'brief-approve'
   | 'team'
-  | 'evidence';
+  | 'evidence'
+  | 'learn';
 
 type Entry = {
   exists: boolean;
@@ -27,6 +28,7 @@ const DEFAULT_DURATION: Record<ClipName, number> = {
   'brief-approve': 120,
   team: 10,
   evidence: 12,
+  learn: 19,
 };
 
 // Where things are on screen, as fractions of the 1920×1080 recording. Derived from
@@ -44,6 +46,7 @@ const DEFAULT_POINTS: Record<ClipName, Record<string, [number, number]>> = {
   'phone-capture': {},
   team: {},
   evidence: {expand: [0.5, 0.45]},
+  learn: {proposal: [0.5, 0.3], river: [0.62, 0.8]},
 };
 
 export const clip = (name: ClipName) => {

@@ -504,3 +504,64 @@ export const Trust: React.FC<{frames: number}> = ({frames}) => {
   );
 };
 
+
+/** It learns: a human merges a policy change proven on held-out decisions; the company's own model trains on River. */
+export const Learn: React.FC<{frames: number}> = ({frames}) => {
+  const frame = useCurrentFrame();
+  const {fps} = useVideoConfig();
+  const c = clip('learn');
+  const from = 1.5;
+  const secs = frames / fps;
+  const rate = Math.min(1.6, Math.max(0.8, (c.duration - from - 0.3) / secs));
+  const segs = plan(c, [{frames, from, rate}]);
+  const s = spring({frame, fps, config: {damping: 22, stiffness: 80}});
+  const chipsAt = beat(6);
+  const W2 = 1100;
+  return (
+    <AbsoluteFill>
+      <Backdrop glow={C.proposed} glow2={C.observed} />
+      <div style={{position: 'absolute', inset: 0, perspective: 2400}}>
+        <div
+          style={{
+            position: 'absolute',
+            left: 70,
+            top: 170,
+            transform: `translateX(${(1 - s) * -200}px) rotateY(${6 + (1 - s) * 14}deg)`,
+            transformOrigin: '0% 50%',
+            opacity: Math.min(1, s * 1.5),
+          }}
+        >
+          <BrowserFrame width={W2} url="cortex / learn" glow={C.proposed}>
+            <ClipVideo clip={c} segs={segs} />
+          </BrowserFrame>
+          <div style={{fontFamily: MONO, fontSize: 22, color: C.muted, marginTop: 24}}>
+            proposal → human merge → policy v2 in GBrain · seeded history + live decisions
+          </div>
+        </div>
+      </div>
+      <div style={{position: 'absolute', left: 1250, top: 210, width: 620}}>
+        <Kicker color={C.proposed}>It learns</Kicker>
+        <div style={{marginTop: 26}}>
+          <Words text="The company improves how it runs." size={72} align="left" delay={4} stagger={3} highlight={{improves: C.proposed}} />
+        </div>
+        <div style={{display: 'flex', flexDirection: 'column', gap: 18, marginTop: 46, alignItems: 'flex-start'}}>
+          {[
+            {label: 'New rule · competitor signals → CEO', color: C.derived},
+            {label: 'Held-out decisions · 62% → 86%', color: C.proposed},
+            {label: 'Own model on River · 62% → 95%', color: C.observed},
+          ].map((x, i) => {
+            const k = spring({frame: frame - chipsAt - i * 10, fps, config: {damping: 15, stiffness: 170}});
+            return (
+              <div key={x.label} style={{opacity: k, transform: `translateY(${(1 - k) * 30}px)`}}>
+                <Chip label={x.label} color={x.color} size={26} />
+              </div>
+            );
+          })}
+        </div>
+        <div style={{marginTop: 36}}>
+          <Words text="A human merges every change." size={40} weight={500} align="left" color={C.muted} delay={chipsAt + 34} stagger={2} />
+        </div>
+      </div>
+    </AbsoluteFill>
+  );
+};

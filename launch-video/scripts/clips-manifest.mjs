@@ -20,6 +20,7 @@ const CLIPS = [
   'brief-approve',
   'team',
   'evidence',
+  'learn',
 ];
 
 const probe = (file) => {

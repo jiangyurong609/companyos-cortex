@@ -47,6 +47,7 @@ export const SECTIONS = [
   ['connected', 20],
   ['decide', 22],
   ['trust', 10],
+  ['learn', 24],
   ['stack', 10],
   ['close', 14],
 ] as const;
